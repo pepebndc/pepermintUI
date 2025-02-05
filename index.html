@@ -111,6 +111,19 @@
         .copy-button:hover {
             background-color: #e0e0e0;
         }
+        .footer {
+            text-align: center;
+            padding: 20px 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .footer a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -205,6 +218,10 @@
         <!-- Response Display -->
         <div id="response"></div>
     </div>
+
+    <footer class="footer">
+        Created by <a href="https://github.com/pepebndc" target="_blank">Pepe Blasco</a>
+    </footer>
 
     <script>
         const API_BASE_URL = 'https://api.peppermint.tools/api/v1';
