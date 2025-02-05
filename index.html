@@ -124,6 +124,14 @@
         .footer a:hover {
             text-decoration: underline;
         }
+        .response-success a, .response-error a {
+            color: #1976d2;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .response-success a:hover, .response-error a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -479,9 +487,20 @@
 
                 const data = await response.json();
                 if (!data.error) {
-                    showResponse('Token deployed successfully!\nContract Address: ' + data.data.address);
+                    const explorerUrl = getExplorerUrl(blockchainId, data.data.hash);
+                    const message = `Token deployed successfully!\n` +
+                                  `Contract Address: ${data.data.address}\n` +
+                                  `Transaction: <a href="${explorerUrl}" target="_blank">${data.data.hash}</a>`;
+                    showResponse(message, false);
                 } else {
-                    showResponse('Failed to deploy token: ' + data.code, true);
+                    let errorMessage = 'Failed to deploy token: ';
+                    
+                    // Add specific error messages based on error codes
+                    switch(data.code) {
+                        // ... existing error cases ...
+                    }
+                    
+                    showResponse(errorMessage, true);
                 }
             } catch (error) {
                 showResponse('Failed to deploy token: ' + error.message, true);
@@ -490,8 +509,87 @@
 
         function showResponse(message, isError = false) {
             const responseDiv = document.getElementById('response');
-            responseDiv.textContent = message;
+            responseDiv.innerHTML = message;
             responseDiv.className = isError ? 'response-error' : 'response-success';
+        }
+
+        function getExplorerUrl(blockchainId, txHash) {
+            // Map of blockchain IDs to their explorers
+            const explorers = {
+                // Ethereum & Testnets
+                1: 'https://etherscan.io/tx/',                    // Ethereum Mainnet
+                5: 'https://goerli.etherscan.io/tx/',            // Goerli Testnet
+                11155111: 'https://sepolia.etherscan.io/tx/',    // Sepolia Testnet
+                
+                // Polygon & Testnets
+                137: 'https://polygonscan.com/tx/',              // Polygon Mainnet
+                80001: 'https://mumbai.polygonscan.com/tx/',     // Mumbai Testnet
+                
+                // BSC & Testnets
+                56: 'https://bscscan.com/tx/',                   // BSC Mainnet
+                97: 'https://testnet.bscscan.com/tx/',           // BSC Testnet
+                
+                // Avalanche & Testnets
+                43114: 'https://snowtrace.io/tx/',               // Avalanche Mainnet
+                43113: 'https://testnet.snowtrace.io/tx/',       // Avalanche Fuji Testnet
+                
+                // Arbitrum & Testnets
+                42161: 'https://arbiscan.io/tx/',                // Arbitrum One
+                421613: 'https://goerli.arbiscan.io/tx/',        // Arbitrum Goerli
+                421614: 'https://sepolia.arbiscan.io/tx/',       // Arbitrum Sepolia
+                
+                // Optimism & Testnets
+                10: 'https://optimistic.etherscan.io/tx/',       // Optimism Mainnet
+                420: 'https://goerli-optimism.etherscan.io/tx/', // Optimism Goerli
+                11155420: 'https://sepolia-optimism.etherscan.io/tx/', // Optimism Sepolia
+                
+                // Base & Testnets
+                8453: 'https://basescan.org/tx/',                // Base Mainnet
+                84531: 'https://goerli.basescan.org/tx/',        // Base Goerli
+                84532: 'https://sepolia.basescan.org/tx/',       // Base Sepolia
+                
+                // Gnosis Chain (formerly xDai)
+                100: 'https://gnosisscan.io/tx/',                // Gnosis Chain
+                
+                // Fantom & Testnets
+                250: 'https://ftmscan.com/tx/',                  // Fantom Opera
+                4002: 'https://testnet.ftmscan.com/tx/',         // Fantom Testnet
+                
+                // Celo & Testnets
+                42220: 'https://celoscan.io/tx/',                // Celo Mainnet
+                44787: 'https://alfajores.celoscan.io/tx/',      // Celo Alfajores Testnet
+                
+                // zkSync & Testnets
+                324: 'https://explorer.zksync.io/tx/',           // zkSync Era Mainnet
+                280: 'https://goerli.explorer.zksync.io/tx/',    // zkSync Era Testnet
+                
+                // Polygon zkEVM & Testnets
+                1101: 'https://zkevm.polygonscan.com/tx/',       // Polygon zkEVM Mainnet
+                1442: 'https://testnet-zkevm.polygonscan.com/tx/', // Polygon zkEVM Testnet
+                
+                // Linea & Testnets
+                59144: 'https://lineascan.build/tx/',            // Linea Mainnet
+                59140: 'https://goerli.lineascan.build/tx/',     // Linea Testnet
+                
+                // Mantle & Testnets
+                5000: 'https://explorer.mantle.xyz/tx/',         // Mantle Mainnet
+                5001: 'https://explorer.testnet.mantle.xyz/tx/', // Mantle Testnet
+                
+                // Scroll & Testnets
+                534352: 'https://scrollscan.com/tx/',            // Scroll Mainnet
+                534351: 'https://sepolia.scrollscan.com/tx/',    // Scroll Sepolia
+                
+                // Metis & Testnets
+                1088: 'https://andromeda-explorer.metis.io/tx/', // Metis Andromeda
+                599: 'https://goerli.explorer.metisdevops.link/tx/' // Metis Goerli
+            };
+            
+            const explorerUrl = explorers[blockchainId];
+            if (!explorerUrl) {
+                console.warn(`No explorer found for blockchain ID ${blockchainId}, defaulting to Etherscan`);
+                return 'https://etherscan.io/tx/' + txHash;
+            }
+            return explorerUrl + txHash;
         }
 
         async function updateVaultBalance() {
