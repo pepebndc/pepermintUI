@@ -66,6 +66,21 @@
             background-color: #ffebee;
             border: 1px solid #ffcdd2;
         }
+        .balance-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            margin-top: 8px;
+            background-color: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 4px;
+            color: #1976d2;
+            font-size: 0.9em;
+        }
+        .balance-tag.no-balance {
+            background-color: #fafafa;
+            border-color: #e0e0e0;
+            color: #757575;
+        }
     </style>
 </head>
 <body>
@@ -124,9 +139,10 @@
         </div>
         <div class="form-group">
             <label for="blockchainId">Blockchain:</label>
-            <select id="blockchainId" required>
+            <select id="blockchainId" required onchange="updateVaultBalance()">
                 <option value="">Loading blockchains...</option>
             </select>
+            <div id="vaultBalance" class="balance-tag" style="display: none;"></div>
         </div>
         <div class="form-group">
             <label for="tokenName">Token Name:</label>
@@ -302,12 +318,14 @@
                     const select = document.getElementById('existingVaults');
                     select.innerHTML = '<option value="">Select a vault...</option>' + 
                         data.data.map(vault => 
-                            `<option value="${vault.id}" data-public-key="${vault.publicKey}">
+                            `<option value="${vault.id}" 
+                                data-public-key="${vault.publicKey}"
+                                data-blockchains='${JSON.stringify(vault.blockchains)}'>
                                 ${vault.name} (${vault.id})
                             </option>`
                         ).join('');
                     showResponse('Vaults loaded successfully');
-                    await fetchBlockchains(); // Load blockchains after successful vault fetch
+                    await fetchBlockchains();
                 } else {
                     showResponse('Failed to load vaults: ' + data.code, true);
                     if (data.code === 'errors.unauthorized') {
@@ -326,6 +344,7 @@
                 const selectedOption = document.querySelector(`#existingVaults option[value="${vaultId}"]`);
                 const publicKey = selectedOption.getAttribute('data-public-key');
                 showResponse(`Selected vault with ID: ${vaultId}`);
+                updateVaultBalance();
             }
         }
 
@@ -398,6 +417,38 @@
             const responseDiv = document.getElementById('response');
             responseDiv.textContent = message;
             responseDiv.className = isError ? 'response-error' : 'response-success';
+        }
+
+        async function updateVaultBalance() {
+            const vaultId = document.getElementById('vaultId').value;
+            const blockchainId = parseInt(document.getElementById('blockchainId').value);
+            const balanceDiv = document.getElementById('vaultBalance');
+            
+            if (!vaultId || !blockchainId) {
+                balanceDiv.style.display = 'none';
+                return;
+            }
+
+            const selectedVaultOption = document.querySelector(`#existingVaults option[value="${vaultId}"]`);
+            if (!selectedVaultOption) {
+                balanceDiv.style.display = 'none';
+                return;
+            }
+
+            const blockchains = JSON.parse(selectedVaultOption.getAttribute('data-blockchains'));
+            const blockchainInfo = blockchains.find(b => b.blockchainId === blockchainId);
+            
+            balanceDiv.style.display = 'inline-block';
+            
+            if (blockchainInfo) {
+                const selectedBlockchain = document.querySelector(`#blockchainId option[value="${blockchainId}"]`);
+                const currency = selectedBlockchain ? selectedBlockchain.textContent.match(/\((.*?)\)/)?.[1] || '' : '';
+                balanceDiv.textContent = `Balance: ${blockchainInfo.balance} ${currency}`;
+                balanceDiv.classList.remove('no-balance');
+            } else {
+                balanceDiv.textContent = 'Balance: 0';
+                balanceDiv.classList.add('no-balance');
+            }
         }
     </script>
 </body>
