@@ -1,0 +1,2986 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Peppermint API",
+    "description": "Peppermint's API service OpenAPI",
+    "version": "1.0.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": { "type": "apiKey", "in": "header", "name": "x-api-key" },
+      "NonceAuth": { "type": "apiKey", "in": "header", "name": "x-nonce" },
+      "ApiSignatureAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "api-signature"
+      }
+    },
+    "schemas": {
+      "Blockchain": {
+        "type": "object",
+        "tags": ["Blockchain"],
+        "properties": {
+          "id": { "type": "number" },
+          "name": { "type": "string" },
+          "currency": { "type": "string" }
+        },
+        "required": ["id", "name", "currency"]
+      },
+      "Contract": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "address": { "type": "string" },
+          "blockchainId": { "type": "integer" },
+          "vaultId": { "type": "string" },
+          "templateName": { "type": "string" },
+          "deploymentStatus": {
+            "type": "string",
+            "enum": [
+              "TO_BE_SENT",
+              "FAILED_TO_SEND",
+              "SENT",
+              "CONFIRMED",
+              "FAILED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "blockchainId",
+          "vaultId",
+          "templateName",
+          "deploymentStatus"
+        ]
+      },
+      "Recipe": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "address": { "type": "string" },
+          "blockchainId": { "type": "integer" },
+          "vaultId": { "type": "string" },
+          "templateName": { "type": "string" },
+          "deploymentStatus": {
+            "type": "string",
+            "enum": [
+              "TO_BE_SENT",
+              "FAILED_TO_SEND",
+              "SENT",
+              "CONFIRMED",
+              "FAILED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "blockchainId",
+          "vaultId",
+          "templateName",
+          "deploymentStatus"
+        ]
+      },
+      "Template": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "abi": { "type": "string" },
+          "bytecode": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["NFT", "TOKEN", "WALLET", "NONE"]
+          }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "hash": { "type": "string" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "value": { "type": "string" },
+          "blockchainId": { "type": "integer" },
+          "vaultId": { "type": "string" },
+          "contractId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "TO_BE_SENT",
+              "FAILED_TO_SEND",
+              "SENT",
+              "CONFIRMED",
+              "FAILED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "hash",
+          "from",
+          "to",
+          "value",
+          "blockchainId",
+          "vaultId",
+          "status"
+        ]
+      },
+      "Vault": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "publicKey": { "type": "string" },
+          "projectId": { "type": "string" },
+          "blockchains": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/VaultBlockchain" }
+          }
+        },
+        "required": ["id", "name", "publicKey", "projectId", "blockchains"]
+      },
+      "VaultBlockchain": {
+        "type": "object",
+        "properties": {
+          "blockchainId": { "type": "number" },
+          "balance": { "type": "string" }
+        },
+        "required": ["blockchainId", "balance"]
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/blockchains/": {
+      "get": {
+        "operationId": "readBlockchain",
+        "tags": ["Blockchain"],
+        "description": "Get a list of Blockchain",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": { "type": "integer", "default": 0, "minimum": 0 },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "total": { "type": "number" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Blockchain" }
+                    }
+                  },
+                  "required": ["error", "statusCode", "total", "data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contracts/deploy/": {
+      "post": {
+        "operationId": "deployContract",
+        "tags": ["Contract"],
+        "description": "Create and deploy a contract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "blockchainId": { "type": "integer" },
+                  "vaultId": { "type": "string" },
+                  "templateName": { "type": "string" },
+                  "args": { "type": "array", "items": {} }
+                },
+                "required": ["name", "blockchainId", "vaultId", "templateName"]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Contract" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.noConstructor",
+                        "errors.contract.invalidArgs"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.template.notFound",
+                        "errors.blockchain.notFound",
+                        "errors.vault.notFound",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contracts/": {
+      "get": {
+        "operationId": "readContract",
+        "tags": ["Contract"],
+        "description": "Get a list of Contract",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": { "type": "integer", "default": 0, "minimum": 0 },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "total": { "type": "number" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Contract" }
+                    }
+                  },
+                  "required": ["error", "statusCode", "total", "data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contracts/{id}/": {
+      "get": {
+        "operationId": "readOneContract",
+        "tags": ["Contract"],
+        "description": "Get a Contract by id",
+        "parameters": [
+          {
+            "schema": { "type": "string" },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "data": { "$ref": "#/components/schemas/Contract" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.notFound"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contracts/{id}/read/": {
+      "post": {
+        "operationId": "readContractFunction",
+        "tags": ["Contract"],
+        "description": "Read a function from a contract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "functionName": { "type": "string" },
+                  "args": { "type": "array", "items": {} }
+                },
+                "additionalProperties": true,
+                "required": ["functionName"]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": { "type": "string" },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.invalidArgs"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contracts/{id}/write/": {
+      "post": {
+        "operationId": "writeContractFunction",
+        "tags": ["Contract"],
+        "description": "Write a function from a contract using a vault",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "vaultId": { "type": "string" },
+                  "functionName": { "type": "string" },
+                  "args": { "type": "array", "items": {} },
+                  "value": { "type": "string" }
+                },
+                "required": ["vaultId", "functionName"]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": { "type": "string" },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/wallets/create/": {
+      "post": {
+        "operationId": "walletCreate",
+        "tags": ["Recipe"],
+        "description": "Create a wallet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "blockchainId": { "type": "integer" },
+                  "vaultId": { "type": "string" }
+                },
+                "required": ["name", "blockchainId", "vaultId"]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Recipe" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.contractNotDeployed",
+                        "errors.contract.functionNotFound",
+                        "errors.contract.invalidArgs"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.blockchain.notFound",
+                        "errors.template.notFound",
+                        "errors.vault.notFound",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/wallets/transfer-erc20/": {
+      "post": {
+        "operationId": "walletTokenTransfer",
+        "tags": ["Recipe"],
+        "description": "Transfer tokens between two wallets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The wallet contractId that has the tokens"
+                  },
+                  "tokenAddress": {
+                    "type": "string",
+                    "description": "The address of token to send."
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "The address of the receiver."
+                  },
+                  "amount": {
+                    "type": "string",
+                    "description": "The amount of tokens to transfer in wei format."
+                  }
+                },
+                "required": ["contractId", "tokenAddress", "to", "amount"]
+              },
+              "example": {
+                "summary": "Example for token ERC20 transaction",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "tokenAddress": "0x1234567890123456789012345678901234567890",
+                  "to": "0x1234567890123456789012345678901234567890",
+                  "amount": "1000000000000000000"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidAmount",
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidWalletContractId",
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/wallets/transfer-erc721/": {
+      "post": {
+        "operationId": "walletERC721Transfer",
+        "tags": ["Recipe"],
+        "description": "Transfer ERC721 between two wallets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The wallet contractId"
+                  },
+                  "tokenAddress": {
+                    "type": "string",
+                    "description": "The address of the ERC721 contract."
+                  },
+                  "tokenId": {
+                    "type": "string",
+                    "description": "The tokenId of the ERC721 at the contract."
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "The address of the receiver."
+                  }
+                },
+                "required": ["contractId", "tokenAddress", "tokenId", "to"]
+              },
+              "example": {
+                "summary": "Example for ERC721 transaction",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "tokenAddress": "0x1234567890123456789012345678901234567890",
+                  "tokenId": "44",
+                  "to": "0x1234567890123456789012345678901234567890"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidTokenId",
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidWalletContractId",
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/wallets/transfer-erc1155/": {
+      "post": {
+        "operationId": "walletERC1155Transfer",
+        "tags": ["Recipe"],
+        "description": "Transfer ERC1155 between two wallets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The wallet contractId"
+                  },
+                  "tokenAddress": {
+                    "type": "string",
+                    "description": "The address of the ERC1155 contract."
+                  },
+                  "tokenId": {
+                    "type": "string",
+                    "description": "The tokenId of the ERC1155 at the contract."
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "The address of the receiver."
+                  },
+                  "amount": {
+                    "type": "string",
+                    "description": "The amount of ERC1155 to transfer."
+                  }
+                },
+                "required": [
+                  "contractId",
+                  "tokenAddress",
+                  "tokenId",
+                  "to",
+                  "amount"
+                ]
+              },
+              "example": {
+                "summary": "Example for ERC1155 transaction",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "tokenAddress": "0x1234567890123456789012345678901234567890",
+                  "tokenId": "44",
+                  "to": "0x1234567890123456789012345678901234567890",
+                  "amount": "2"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidAmount",
+                        "errors.recipe.invalidTokenId",
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidWalletContractId",
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/tokens/create/": {
+      "post": {
+        "operationId": "tokenCreate",
+        "tags": ["Recipe"],
+        "description": "Create a new token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "type": { "type": "string", "enum": ["MintBurnERC20"] },
+                  "blockchainId": { "type": "integer" },
+                  "vaultId": { "type": "string" },
+                  "args": { "type": "array", "items": {} }
+                },
+                "required": ["name", "type", "blockchainId", "vaultId"]
+              },
+              "example": {
+                "summary": "Example for MintBurnERC20",
+                "value": {
+                  "name": "InternalName",
+                  "type": "MintBurnERC20",
+                  "blockchainId": 1,
+                  "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "args": ["name_", "symbol_", "decimals_"]
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Contract" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.noConstructor",
+                        "errors.contract.invalidArgs"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.typeNotFound",
+                        "errors.template.notFound",
+                        "errors.blockchain.notFound",
+                        "errors.vault.notFound",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/tokens/mint/": {
+      "post": {
+        "operationId": "tokenMint",
+        "tags": ["Recipe"],
+        "description": "Mint tokens from a contract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The contractId of the token contract"
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "The address where the minted tokens will be sent."
+                  },
+                  "amount": {
+                    "type": "string",
+                    "description": "The amount of tokens to mint in wei format."
+                  }
+                },
+                "required": ["contractId", "to", "amount"]
+              },
+              "example": {
+                "summary": "Example for mint action of a ERC20 token",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "to": "0x1234567890123456789012345678901234567890",
+                  "amount": "1000000000000000000"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidAmount",
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/tokens/burn/": {
+      "post": {
+        "operationId": "tokenBurn",
+        "tags": ["Recipe"],
+        "description": "Burn tokens from a contract address",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The contractId of the token contract"
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "The address from which the tokens will be burnt."
+                  },
+                  "amount": {
+                    "type": "string",
+                    "description": "The amount of tokens to burn in wei format."
+                  }
+                },
+                "required": ["contractId", "from", "amount"]
+              },
+              "example": {
+                "summary": "Example of burning a ERC20 token from a contract specific address",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "from": "0x1234567890123456789012345678901234567890",
+                  "amount": "1000000000000000000"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidAmount",
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/nfts/create/": {
+      "post": {
+        "operationId": "nftCreate",
+        "tags": ["Recipe"],
+        "description": "Create a new NFT",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "BaseERC721",
+                      "PurchasableERC721",
+                      "RoyaltiesERC721",
+                      "SoulboundERC721",
+                      "BaseERC1155",
+                      "PurchasableERC1155",
+                      "RoyaltiesERC1155",
+                      "SoulboundERC1155"
+                    ]
+                  },
+                  "blockchainId": { "type": "integer" },
+                  "vaultId": { "type": "string" },
+                  "args": { "type": "array", "items": {} }
+                },
+                "required": ["name", "type", "blockchainId", "vaultId"]
+              },
+              "examples": {
+                "example1": {
+                  "value": {
+                    "summary": "Example for BaseERC721",
+                    "value": {
+                      "name": "InternalName",
+                      "type": "BaseERC721",
+                      "blockchainId": 1,
+                      "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                      "args": ["name_", "symbol_"]
+                    }
+                  }
+                },
+                "example2": {
+                  "value": {
+                    "summary": "Example for PurchasableERC721",
+                    "value": {
+                      "name": "InternalName",
+                      "type": "PurchasableERC721",
+                      "blockchainId": 1,
+                      "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                      "args": [
+                        "name_",
+                        "symbol_",
+                        "royaltiesAddress_",
+                        "royaltiesFee_"
+                      ]
+                    }
+                  }
+                },
+                "example3": {
+                  "value": {
+                    "summary": "Example for RoyaltiesERC721",
+                    "value": {
+                      "name": "InternalName",
+                      "type": "RoyaltiesERC721",
+                      "blockchainId": 1,
+                      "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                      "args": [
+                        "name_",
+                        "symbol_",
+                        "royaltiesAddress_",
+                        "royaltiesFee_"
+                      ]
+                    }
+                  }
+                },
+                "example4": {
+                  "value": {
+                    "summary": "Example for SoulboundERC721",
+                    "value": {
+                      "name": "InternalName",
+                      "type": "SoulboundERC721",
+                      "blockchainId": 1,
+                      "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                      "args": ["name_", "symbol_"]
+                    }
+                  }
+                },
+                "example5": {
+                  "value": {
+                    "summary": "Example for BaseERC1155",
+                    "value": {
+                      "name": "InternalName",
+                      "type": "BaseERC1155",
+                      "blockchainId": 1,
+                      "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                      "args": ["name_", "symbol_"]
+                    }
+                  }
+                },
+                "example6": {
+                  "value": {
+                    "summary": "Example for PurchasableERC1155",
+                    "value": {
+                      "name": "InternalName",
+                      "type": "PurchasableERC1155",
+                      "blockchainId": 1,
+                      "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                      "args": [
+                        "name_",
+                        "symbol_",
+                        "royaltiesAddress_",
+                        "royaltiesFee_"
+                      ]
+                    }
+                  }
+                },
+                "example7": {
+                  "value": {
+                    "summary": "Example for RoyaltiesERC1155",
+                    "value": {
+                      "name": "InternalName",
+                      "type": "RoyaltiesERC1155",
+                      "blockchainId": 1,
+                      "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                      "args": [
+                        "name_",
+                        "symbol_",
+                        "royaltiesAddress_",
+                        "royaltiesFee_"
+                      ]
+                    }
+                  }
+                },
+                "example8": {
+                  "value": {
+                    "summary": "Example for SoulboundERC1155",
+                    "value": {
+                      "name": "InternalName",
+                      "type": "SoulboundERC1155",
+                      "blockchainId": 1,
+                      "vaultId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                      "args": ["name_", "symbol_"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Contract" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.noConstructor",
+                        "errors.contract.invalidArgs"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.typeNotFound",
+                        "errors.template.notFound",
+                        "errors.blockchain.notFound",
+                        "errors.vault.notFound",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/nfts/erc-721/mint/": {
+      "post": {
+        "operationId": "nftERC721Mint",
+        "tags": ["Recipe"],
+        "description": "Mint ERC721 from a deployed contract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The contractId of the ERC721 contract."
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "The address where the minted ERC721 will be sent."
+                  },
+                  "media": {
+                    "type": "string",
+                    "description": "The bytes media to assign to the ERC721 created.",
+                    "contentEncoding": "base64"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the ERC721 token."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "The description of the ERC721 token."
+                  },
+                  "extraMetadata": {
+                    "type": "object",
+                    "description": "Extra metadata to be stored in the ERC721 token.",
+                    "default": {}
+                  }
+                },
+                "required": ["contractId", "to", "media", "name", "description"]
+              },
+              "example": {
+                "summary": "Example for mint action of a ERC721 NFT from a media bytes",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "to": "0x1234567890123456789012345678901234567890",
+                  "media": "iVBORw0KGgoAAAANSUhEUgAAAAUA...",
+                  "name": "MyNFT",
+                  "description": "My first NFT",
+                  "extraMetadata": {
+                    "creator": "JM Zaspen",
+                    "license": "CC BB",
+                    "attributes": [{ "trait_type": "Color", "value": "Red" }]
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidMedia",
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.failUploadingToIpfs",
+                        "errors.contract.failedToSend"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/nfts/erc-1155/collection/": {
+      "post": {
+        "operationId": "nftERC1155Collection",
+        "tags": ["Recipe"],
+        "description": "Create a ERC1155 NFT Collection from a deployed contract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The contractId of the ERC1155 contract."
+                  },
+                  "tokenId": {
+                    "type": "string",
+                    "description": "The tokenId of the ERC1155 Collection at the contract."
+                  },
+                  "media": {
+                    "type": "string",
+                    "description": "The bytes media to assign to the ERC1155 collection created.",
+                    "contentEncoding": "base64"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the ERC1155 collection token."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "The description of the ERC1155 collection token."
+                  },
+                  "extraMetadata": {
+                    "type": "object",
+                    "description": "Extra metadata to be stored in the ERC1155 collection token.",
+                    "default": {}
+                  }
+                },
+                "required": [
+                  "contractId",
+                  "tokenId",
+                  "media",
+                  "name",
+                  "description"
+                ]
+              },
+              "example": {
+                "summary": "Example for create a ERC1155 NFT collection from a media bytes",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "tokenId": "44",
+                  "media": "iVBORw0KGgoAAAANSUhEUgAAAAUA...",
+                  "name": "MyNFT",
+                  "description": "My first NFT",
+                  "extraMetadata": {
+                    "creator": "JM Zaspen",
+                    "license": "CC BB",
+                    "attributes": [{ "trait_type": "Color", "value": "Red" }]
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidMedia",
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [409] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.collectionLocked",
+                        "errors.recipe.collectionAlreadyExists"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.failUploadingToIpfs",
+                        "errors.contract.failedToSend"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "nftERC1155CollectionUpdate",
+        "tags": ["Recipe"],
+        "description": "Update a ERC1155 NFT Collection from a deployed contract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The contractId of the ERC1155 contract."
+                  },
+                  "tokenId": {
+                    "type": "string",
+                    "description": "The tokenId of the ERC1155 Collection at the contract."
+                  },
+                  "media": {
+                    "type": "string",
+                    "description": "The bytes media to assign to the ERC1155 collection created.",
+                    "contentEncoding": "base64"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the ERC1155 collection token."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "The description of the ERC1155 collection token."
+                  },
+                  "extraMetadata": {
+                    "type": "object",
+                    "description": "Extra metadata to be stored in the ERC1155 collection token.",
+                    "default": {}
+                  }
+                },
+                "required": [
+                  "contractId",
+                  "tokenId",
+                  "media",
+                  "name",
+                  "description"
+                ]
+              },
+              "example": {
+                "summary": "Example for create a ERC1155 NFT collection from a media bytes",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "tokenId": "44",
+                  "media": "iVBORw0KGgoAAAANSUhEUgAAAAUA...",
+                  "name": "MyNFT",
+                  "description": "My first NFT",
+                  "extraMetadata": {
+                    "creator": "JM Zaspen",
+                    "license": "CC BB",
+                    "attributes": [{ "trait_type": "Color", "value": "Red" }]
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.invalidMedia",
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.recipe.collectionNotFound"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [409] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.recipe.collectionLocked"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.recipe.failUploadingToIpfs",
+                        "errors.contract.failedToSend"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/nfts/erc-1155/lock-collection/": {
+      "post": {
+        "operationId": "nftERC1155LockCollection",
+        "tags": ["Recipe"],
+        "description": "Lock ERC1155 NFT Collection from a deployed contract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The contractId of the ERC1155 contract."
+                  },
+                  "tokenId": {
+                    "type": "string",
+                    "description": "The tokenId of the ERC1155 Collection at the contract."
+                  }
+                },
+                "required": ["contractId", "tokenId"]
+              },
+              "example": {
+                "summary": "Example for lock ERC1155 NFT collection",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "tokenId": "44"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [409] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.recipe.collectionAlreadyLocked"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recipes/nfts/erc-1155/mint-collection/": {
+      "post": {
+        "operationId": "nftERC1155MintCollection",
+        "tags": ["Recipe"],
+        "description": "Mint ERC1155 NFT Collection from a deployed contract",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "The contractId of the ERC1155 contract."
+                  },
+                  "tokenId": {
+                    "type": "string",
+                    "description": "The tokenId of the ERC1155 Collection at the contract."
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "The address where the minted ERC1155 will be sent."
+                  },
+                  "amount": {
+                    "type": "string",
+                    "description": "The amount of ERC1155 to mint."
+                  }
+                },
+                "required": ["contractId", "tokenId", "to", "amount"]
+              },
+              "example": {
+                "summary": "Example for mint ERC1155 NFT collection",
+                "value": {
+                  "contractId": "añ9d44fz56-90ec-4a2e-b017-c6444ef0e1",
+                  "to": "0x1234567890123456789012345678901234567890",
+                  "tokenId": "44",
+                  "amount": "2"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [400] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.invalidArgs",
+                        "errors.contract.invalidValue",
+                        "errors.insufficientFunds",
+                        "errors.failedToEstimateTransaction"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "errors.contract.notFound",
+                        "errors.contract.notDeployed",
+                        "errors.vault.notFound",
+                        "errors.contract.functionNotFound"
+                      ]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [503] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.contract.failedToSend"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/": {
+      "get": {
+        "operationId": "healthCheck",
+        "tags": ["HealthCheck"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/": {
+      "get": {
+        "operationId": "readTemplate",
+        "tags": ["Template"],
+        "description": "Get a list of Template",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": { "type": "integer", "default": 0, "minimum": 0 },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "total": { "type": "number" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Template" }
+                    }
+                  },
+                  "required": ["error", "statusCode", "total", "data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/{name}/": {
+      "get": {
+        "operationId": "readOneTemplate",
+        "tags": ["Template"],
+        "description": "Get a Template by name",
+        "parameters": [
+          {
+            "schema": { "type": "string" },
+            "in": "path",
+            "name": "name",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "data": { "$ref": "#/components/schemas/Template" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/": {
+      "get": {
+        "operationId": "readTransaction",
+        "tags": ["Transaction"],
+        "description": "Get a list of Transaction",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": { "type": "integer", "default": 0, "minimum": 0 },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "total": { "type": "number" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Transaction" }
+                    }
+                  },
+                  "required": ["error", "statusCode", "total", "data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{id}/": {
+      "get": {
+        "operationId": "readOneTransaction",
+        "tags": ["Transaction"],
+        "description": "Get a Transaction by id",
+        "parameters": [
+          {
+            "schema": { "type": "string" },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "data": { "$ref": "#/components/schemas/Transaction" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.transaction.notFound"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vaults/": {
+      "post": {
+        "operationId": "createVault",
+        "tags": ["Vault"],
+        "description": "Create a vault",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": { "name": { "type": "string" } },
+                "required": ["name"]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [201] },
+                    "data": { "$ref": "#/components/schemas/Vault" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "readVault",
+        "tags": ["Vault"],
+        "description": "Get a list of Vault",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": { "type": "integer", "default": 0, "minimum": 0 },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "total": { "type": "number" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Vault" }
+                    }
+                  },
+                  "required": ["error", "statusCode", "total", "data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vaults/{id}/": {
+      "get": {
+        "operationId": "readOneVault",
+        "tags": ["Vault"],
+        "description": "Get a Vault by id",
+        "parameters": [
+          {
+            "schema": { "type": "string" },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [false] },
+                    "statusCode": { "type": "number", "enum": [200] },
+                    "data": { "$ref": "#/components/schemas/Vault" }
+                  },
+                  "required": ["error", "statusCode", "data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "boolean", "enum": [true] },
+                    "statusCode": { "type": "number", "enum": [404] },
+                    "code": {
+                      "type": "string",
+                      "enum": ["errors.vault.notFound"]
+                    },
+                    "data": {}
+                  },
+                  "required": ["error", "statusCode", "code"]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Blockchain",
+      "description": "Operations related to Blockchains",
+      "x-displayName": "Blockchains"
+    },
+    {
+      "name": "Contract",
+      "description": "Operations related to Contracts",
+      "x-displayName": "Contracts"
+    },
+    {
+      "name": "Recipe",
+      "description": "Operations related to contract Recipes",
+      "x-displayName": "Recipes"
+    },
+    {
+      "name": "Template",
+      "description": "Operations related to Template contract templates",
+      "x-displayName": "Templates"
+    },
+    {
+      "name": "Transaction",
+      "description": "Operations related to Transactions",
+      "x-displayName": "Transactions"
+    },
+    {
+      "name": "Vault",
+      "description": "Operations related to Vaults",
+      "x-displayName": "Vaults"
+    }
+  ],
+  "x-tagGroups": [
+    {
+      "name": "Contracts",
+      "tags": ["Blockchain", "Contract", "Recipe", "Template", "Vault"]
+    },
+    { "name": "Transactions", "tags": ["Transaction"] }
+  ]
+}
