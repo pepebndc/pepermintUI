@@ -343,7 +343,6 @@
                 document.getElementById('vaultId').value = vaultId;
                 const selectedOption = document.querySelector(`#existingVaults option[value="${vaultId}"]`);
                 const publicKey = selectedOption.getAttribute('data-public-key');
-                showResponse(`Selected vault with ID: ${vaultId}`);
                 updateVaultBalance();
             }
         }
