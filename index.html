@@ -433,8 +433,19 @@
                 return;
             }
 
+            // Determine the correct endpoint based on token type
+            let endpoint = '';
+            if (tokenType === 'MintBurnERC20') {
+                endpoint = '/recipes/tokens/create/';
+            } else if (tokenType.includes('ERC721') || tokenType.includes('ERC1155')) {
+                endpoint = '/recipes/nfts/create/';
+            } else {
+                showResponse('Unsupported token type', true);
+                return;
+            }
+
             try {
-                const response = await fetch(`${API_BASE_URL}/recipes/tokens/create/`, {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
