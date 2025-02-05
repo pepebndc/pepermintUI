@@ -81,6 +81,36 @@
             border-color: #e0e0e0;
             color: #757575;
         }
+        .address-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .address-tag {
+            flex: 1;
+            padding: 6px 8px;
+            background-color: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #424242;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .copy-button {
+            padding: 6px 12px;
+            background-color: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #424242;
+        }
+        .copy-button:hover {
+            background-color: #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -104,6 +134,11 @@
             <select id="existingVaults" onchange="selectVault(this.value)">
                 <option value="">Select a vault...</option>
             </select>
+            <div id="depositAddress" class="address-display" style="display: none;">
+                <small style="color: #666; margin-bottom: 4px; display: block;">Vault Deposit Address:</small>
+                <div class="address-tag"></div>
+                <button class="copy-button" onclick="copyAddress()">Copy</button>
+            </div>
             <small style="display: block; margin-top: 5px; color: #666;">
                 Note: Create vaults in the Peppermint dashboard at 
                 <a href="https://dashboard.peppermint.tools" target="_blank">dashboard.peppermint.tools</a>
@@ -343,7 +378,20 @@
                 document.getElementById('vaultId').value = vaultId;
                 const selectedOption = document.querySelector(`#existingVaults option[value="${vaultId}"]`);
                 const publicKey = selectedOption.getAttribute('data-public-key');
+                
+                // Update deposit address display
+                const depositAddressDiv = document.getElementById('depositAddress');
+                const addressTag = depositAddressDiv.querySelector('.address-tag');
+                if (publicKey) {
+                    depositAddressDiv.style.display = 'flex';
+                    addressTag.textContent = publicKey;
+                } else {
+                    depositAddressDiv.style.display = 'none';
+                }
+                
                 updateVaultBalance();
+            } else {
+                document.getElementById('depositAddress').style.display = 'none';
             }
         }
 
@@ -439,14 +487,46 @@
             
             balanceDiv.style.display = 'inline-block';
             
-            if (blockchainInfo) {
+            if (blockchainInfo && blockchainInfo.balance) {
                 const selectedBlockchain = document.querySelector(`#blockchainId option[value="${blockchainId}"]`);
                 const currency = selectedBlockchain ? selectedBlockchain.textContent.match(/\((.*?)\)/)?.[1] || '' : '';
-                balanceDiv.textContent = `Balance: ${blockchainInfo.balance} ${currency}`;
+                
+                // Format balance to handle decimals
+                let balance = blockchainInfo.balance;
+                try {
+                    // If balance is a number or numeric string, format it
+                    if (!isNaN(balance)) {
+                        balance = parseFloat(balance).toLocaleString('en-US', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 18 // Maximum decimals in most blockchains
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error formatting balance:', error);
+                }
+                
+                balanceDiv.textContent = `Balance: ${balance} ${currency}`;
                 balanceDiv.classList.remove('no-balance');
             } else {
-                balanceDiv.textContent = 'Balance: 0';
+                balanceDiv.textContent = 'Balance not available';
                 balanceDiv.classList.add('no-balance');
+            }
+        }
+
+        // Copy address to clipboard
+        async function copyAddress() {
+            const addressTag = document.querySelector('.address-tag');
+            const copyButton = document.querySelector('.copy-button');
+            const originalText = copyButton.textContent;
+            
+            try {
+                await navigator.clipboard.writeText(addressTag.textContent);
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
             }
         }
     </script>
