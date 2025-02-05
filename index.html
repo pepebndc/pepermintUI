@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peppermint ERC20 Token Deployer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            margin-top: 10px;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .response-success {
+            background-color: #e8f5e9;
+            border: 1px solid #a5d6a7;
+        }
+        .response-error {
+            background-color: #ffebee;
+            border: 1px solid #ffcdd2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Peppermint ERC20 Token Deployer</h1>
+        
+        <!-- API Configuration -->
+        <div class="form-group">
+            <label for="apiKey">API Key:</label>
+            <input type="password" id="apiKey" required>
+            <button onclick="fetchVaults()" style="margin-top: 10px;">Load My Vaults</button>
+        </div>
+
+        <!-- Step 1: Select Vault -->
+        <h2>Step 1: Select Vault</h2>
+        
+        <!-- Vault Selection -->
+        <div class="form-group">
+            <label for="existingVaults">Select Vault:</label>
+            <select id="existingVaults" onchange="selectVault(this.value)">
+                <option value="">Select a vault...</option>
+            </select>
+            <small style="display: block; margin-top: 5px; color: #666;">
+                Note: Create vaults in the Peppermint dashboard at 
+                <a href="https://dashboard.peppermint.tools" target="_blank">dashboard.peppermint.tools</a>
+            </small>
+        </div>
+
+        <!-- Step 2: Deploy Token -->
+        <h2>Step 2: Deploy Token</h2>
+        <div class="form-group">
+            <label for="vaultId">Vault ID:</label>
+            <input type="text" id="vaultId" required readonly>
+        </div>
+        <div class="form-group">
+            <label for="tokenType">Token Type:</label>
+            <select id="tokenType" onchange="updateTokenForm()" required>
+                <option value="">Select token type...</option>
+                <optgroup label="ERC20">
+                    <option value="MintBurnERC20">ERC20 (Mintable/Burnable)</option>
+                </optgroup>
+                <optgroup label="ERC721">
+                    <option value="BaseERC721">ERC721 (Basic)</option>
+                    <option value="PurchasableERC721">ERC721 (Purchasable)</option>
+                    <option value="RoyaltiesERC721">ERC721 (With Royalties)</option>
+                    <option value="SoulboundERC721">ERC721 (Soulbound)</option>
+                </optgroup>
+                <optgroup label="ERC1155">
+                    <option value="BaseERC1155">ERC1155 (Basic)</option>
+                    <option value="PurchasableERC1155">ERC1155 (Purchasable)</option>
+                    <option value="RoyaltiesERC1155">ERC1155 (With Royalties)</option>
+                    <option value="SoulboundERC1155">ERC1155 (Soulbound)</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="blockchainId">Blockchain:</label>
+            <select id="blockchainId" required>
+                <option value="">Loading blockchains...</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="tokenName">Token Name:</label>
+            <input type="text" id="tokenName" required>
+        </div>
+        <div class="form-group">
+            <label for="tokenSymbol">Token Symbol:</label>
+            <input type="text" id="tokenSymbol" required>
+        </div>
+        <div class="form-group" id="decimalsGroup">
+            <label for="tokenDecimals">Token Decimals:</label>
+            <input type="number" id="tokenDecimals" value="18" required>
+        </div>
+        <!-- Royalties fields (hidden by default) -->
+        <div class="form-group royalties-fields" style="display: none;">
+            <label for="royaltiesAddress">Royalties Address:</label>
+            <input type="text" id="royaltiesAddress" placeholder="0x...">
+        </div>
+        <div class="form-group royalties-fields" style="display: none;">
+            <label for="royaltiesFee">Royalties Fee (%):</label>
+            <input type="number" id="royaltiesFee" min="0" max="100" step="0.1" value="2.5">
+        </div>
+        <button onclick="deployToken()">Deploy Token</button>
+
+        <!-- Response Display -->
+        <div id="response"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://api.peppermint.tools/api/v1';
+
+        // Token type configurations
+        const TOKEN_CONFIGS = {
+            MintBurnERC20: {
+                showDecimals: true,
+                showRoyalties: false,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value,
+                    document.getElementById('tokenDecimals').value
+                ]
+            },
+            BaseERC721: {
+                showDecimals: false,
+                showRoyalties: false,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value
+                ]
+            },
+            PurchasableERC721: {
+                showDecimals: false,
+                showRoyalties: true,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value,
+                    document.getElementById('royaltiesAddress').value,
+                    document.getElementById('royaltiesFee').value
+                ]
+            },
+            RoyaltiesERC721: {
+                showDecimals: false,
+                showRoyalties: true,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value,
+                    document.getElementById('royaltiesAddress').value,
+                    document.getElementById('royaltiesFee').value
+                ]
+            },
+            SoulboundERC721: {
+                showDecimals: false,
+                showRoyalties: false,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value
+                ]
+            },
+            BaseERC1155: {
+                showDecimals: false,
+                showRoyalties: false,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value
+                ]
+            },
+            PurchasableERC1155: {
+                showDecimals: false,
+                showRoyalties: true,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value,
+                    document.getElementById('royaltiesAddress').value,
+                    document.getElementById('royaltiesFee').value
+                ]
+            },
+            RoyaltiesERC1155: {
+                showDecimals: false,
+                showRoyalties: true,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value,
+                    document.getElementById('royaltiesAddress').value,
+                    document.getElementById('royaltiesFee').value
+                ]
+            },
+            SoulboundERC1155: {
+                showDecimals: false,
+                showRoyalties: false,
+                getArgs: () => [
+                    document.getElementById('tokenName').value,
+                    document.getElementById('tokenSymbol').value
+                ]
+            }
+        };
+
+        // Update form based on selected token type
+        function updateTokenForm() {
+            const tokenType = document.getElementById('tokenType').value;
+            const config = TOKEN_CONFIGS[tokenType];
+            
+            if (config) {
+                document.getElementById('decimalsGroup').style.display = 
+                    config.showDecimals ? 'block' : 'none';
+                
+                document.querySelectorAll('.royalties-fields').forEach(el => {
+                    el.style.display = config.showRoyalties ? 'block' : 'none';
+                });
+            }
+        }
+
+        // Load API key from localStorage on page load
+        window.onload = async function() {
+            const savedApiKey = localStorage.getItem('peppermint_api_key');
+            if (savedApiKey) {
+                document.getElementById('apiKey').value = savedApiKey;
+                await fetchVaults();
+                await fetchBlockchains();
+            } else {
+                document.getElementById('blockchainId').innerHTML = 
+                    '<option value="">Please enter API key and load vaults first</option>';
+            }
+            updateTokenForm();
+        };
+
+        // Save API key to localStorage when it changes
+        document.getElementById('apiKey').addEventListener('change', function() {
+            const apiKey = this.value;
+            if (apiKey) {
+                localStorage.setItem('peppermint_api_key', apiKey);
+            } else {
+                localStorage.removeItem('peppermint_api_key');
+            }
+        });
+
+        // Fetch existing vaults
+        async function fetchVaults() {
+            const apiKey = document.getElementById('apiKey').value;
+            if (!apiKey) {
+                showResponse('Please enter an API key first', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/vaults/`, {
+                    headers: {
+                        'x-api-key': apiKey
+                    }
+                });
+                
+                const data = await response.json();
+                if (!data.error) {
+                    const select = document.getElementById('existingVaults');
+                    select.innerHTML = '<option value="">Select a vault...</option>' + 
+                        data.data.map(vault => 
+                            `<option value="${vault.id}" data-public-key="${vault.publicKey}">
+                                ${vault.name} (${vault.id})
+                            </option>`
+                        ).join('');
+                    showResponse('Vaults loaded successfully');
+                    await fetchBlockchains(); // Load blockchains after successful vault fetch
+                } else {
+                    showResponse('Failed to load vaults: ' + data.code, true);
+                    if (data.code === 'errors.unauthorized') {
+                        localStorage.removeItem('peppermint_api_key');
+                    }
+                }
+            } catch (error) {
+                showResponse('Failed to load vaults: ' + error.message, true);
+            }
+        }
+
+        // Handle vault selection
+        function selectVault(vaultId) {
+            if (vaultId) {
+                document.getElementById('vaultId').value = vaultId;
+                const selectedOption = document.querySelector(`#existingVaults option[value="${vaultId}"]`);
+                const publicKey = selectedOption.getAttribute('data-public-key');
+                showResponse(`Selected vault with ID: ${vaultId}`);
+            }
+        }
+
+        // Fetch blockchains after API key is entered
+        async function fetchBlockchains() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/blockchains/`, {
+                    headers: {
+                        'x-api-key': document.getElementById('apiKey').value
+                    }
+                });
+                const data = await response.json();
+                
+                if (!data.error) {
+                    const select = document.getElementById('blockchainId');
+                    select.innerHTML = data.data.map(chain => 
+                        `<option value="${chain.id}">${chain.name} (${chain.currency})</option>`
+                    ).join('');
+                }
+            } catch (error) {
+                showResponse('Failed to load blockchains', true);
+            }
+        }
+
+        async function deployToken() {
+            const apiKey = document.getElementById('apiKey').value;
+            const vaultId = document.getElementById('vaultId').value;
+            const blockchainId = parseInt(document.getElementById('blockchainId').value);
+            const tokenType = document.getElementById('tokenType').value;
+            
+            if (!tokenType) {
+                showResponse('Please select a token type', true);
+                return;
+            }
+
+            const config = TOKEN_CONFIGS[tokenType];
+            if (!config) {
+                showResponse('Invalid token type selected', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/recipes/tokens/create/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
+                    body: JSON.stringify({
+                        name: document.getElementById('tokenName').value,
+                        type: tokenType,
+                        blockchainId: blockchainId,
+                        vaultId: vaultId,
+                        args: config.getArgs()
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.error) {
+                    showResponse('Token deployed successfully!\nContract Address: ' + data.data.address);
+                } else {
+                    showResponse('Failed to deploy token: ' + data.code, true);
+                }
+            } catch (error) {
+                showResponse('Failed to deploy token: ' + error.message, true);
+            }
+        }
+
+        function showResponse(message, isError = false) {
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = message;
+            responseDiv.className = isError ? 'response-error' : 'response-success';
+        }
+    </script>
+</body>
+</html>
